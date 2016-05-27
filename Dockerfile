@@ -2,5 +2,8 @@ FROM python:2.7
 ADD . /code
 WORKDIR /code
 RUN pip install -r requirements.txt
+EXPOSE 12345
+EXPOSE 12346
+EXPOSE 12347
 ENTRYPOINT ["python"]
 CMD ["hello.py"]

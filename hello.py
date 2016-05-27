@@ -1,11 +1,24 @@
 from flask import Flask
 from flask import request
 from flask import jsonify
+import socket
 #from flask_restful import Resource, Api
 app = Flask(__name__)
 #api = Api(app)
 
+
 kvs = {}
+
+#network variables
+
+
+
+
+@app.route('/myip')
+def whatip():
+	x = request.remote_addr
+	return x
+	#return jsonify({'ip': request.remote_addr}), 200
 
 @app.route('/hello')
 def hello_world():
@@ -104,4 +117,4 @@ if __name__ == '__main__':
 	#f = hash(x, 10)
 	#print f
 	app.debug = True
-	app.run(host='0.0.0.0',port=8080)
+	app.run(host='0.0.0.0',port=12345,12346,12347)
