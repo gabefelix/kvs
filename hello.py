@@ -1,5 +1,7 @@
 import requests
 import json
+import os
+import sys
 from flask import Flask, Response
 from flask import request
 from flask import jsonify
@@ -12,6 +14,8 @@ app = Flask(__name__)
 
 #The key value store
 kvs = {}
+ip = os.environ['IP']
+port = os.environ['PORT']
 
 #This is the default master/primary node
 masternode=0
@@ -20,13 +24,13 @@ masternode=0
 @app.route('/myip')
 def whatip():
 	x = request.remote_addr
-	return x
+	return x + '\n'
 	#return jsonify({'ip': request.remote_addr}), 200su
 
 @app.route('/myport')
 def whatport():
 	x = request.host
-	return x
+	return x + '\n'
 
 @app.route('/hello')
 def hello_world():
@@ -71,12 +75,27 @@ def initKVS(key):
 
 		#Do DELETE
 		if request.method == 'DELETE':
-			theResponse = kvsput(key, x)
+			theResponse = kvsdel(key, x)
 			return theResponse
 
 		#Do GET		
 		else:
+			theResponse = kvsget(key, x)
+			return theResponse
+	else:
+		#Do PUT
+		if request.method == 'PUT':
 			theResponse = kvsput(key, x)
+			return theResponse
+
+		#Do DELETE
+		if request.method == 'DELETE':
+			theResponse = kvsdel(key, x)
+			return theResponse
+
+		#Do GET		
+		else:
+			theResponse = kvsget(key, x)
 			return theResponse
 
 
@@ -155,11 +174,7 @@ if __name__ == '__main__':
 	#f = hash(x, 10)
 	#print f
 	app.debug = True
-	app.run(host='0.0.0.0',port=12345)
-	app.run(host='0.0.0.0',port=12346)
-	app.run(host='0.0.0.0',port=12347)
-	app.run(host='0.0.0.0', port = 49160)
-	app.run(host='0.0.0.0', port = 49161)
-	app.run(host='0.0.0.0', port = 49162)
+	app.run(host=ip, port=int(port))
+
 
 
