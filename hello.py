@@ -1,5 +1,6 @@
 import requests
 import json
+#import jsonify
 import os
 import sys
 from flask import Flask, Response
@@ -21,11 +22,11 @@ members = os.environ['MEMBERS']
 #Initialize the first list of nodes =! primary node
 membersk=str(members)
 memberslist=membersk.split(',')
-#This is the default master/primary node
-masternode='5'
-
 memberslistIds =[x[8:9] for x in memberslist]
 
+#This is the default master/primary node
+masternode=min(memberslistIds)
+memberslistIds.remove(masternode)
 
 
 @app.route('/myip')
@@ -39,24 +40,18 @@ def whatport():
 	x = request.host
 	return x + '\n'
 
-@app.route('/hello')
-def hello_world():
-	#if request.method == 'POST':
-	#	app.error_handler_spec[None][405] = METHOD_NOT_ALLOWED
-	return 'Hello World!'
+@app.route('/masters')
+def master():
+ 	return memberslist[1]
 
+@app.route('/check')
+def check():
+	a = int(masternode)
+	b = a + 5
+	c = str(b)
+	return c
 
-@app.route('/echo')
-def echobot():
-		msg = request.args.get('msg')
-		if msg is None:
-			return ""
-		else:
-			return msg
-
-
-
-
+#CHECK IF THE IP ADDRESS IS FROM A NODE OR USER
 @app.route('/test')
 def node():
 	node = whatport()
@@ -70,6 +65,9 @@ def node():
 	#ipnode = ipnum[4:5]
 	#return ipnode
 
+@app.route('/')
+
+#NODE ID#
 def nodek():
 	node = whatport()
 	ipstr = str(node)
@@ -78,6 +76,7 @@ def nodek():
 	ipnode = ipnum[4:5]
 	return ipnode	
 
+#CHECK IF THE IP ADDRESS IS FROM A NODE / SAME AS node()
 def isnode():
 	node = whatport()
 	ipstr = str(node)
@@ -91,12 +90,17 @@ def isnode():
 	#if (node=="10.0.0.1:49160"):
 	#	return 'found'
 
+#RETURN IP ADDRESS:PORT
 @app.route('/testx')
 def testx():
 	x=whatport()
 	return x
 	#requests.get('http://localhost:49161/myport')
 
+
+
+
+#MAIN KVS PROGRAM
 @app.route('/kvs/<key>', methods = ['PUT', 'GET', 'DELETE'])
 def initKVS(key):
 
@@ -105,7 +109,7 @@ def initKVS(key):
 
 
 	checknode = node()
-	whichnode=nodek()
+	whichnode = nodek()
 
 	#check if the request came from 
 	#a node and not a user
@@ -114,8 +118,12 @@ def initKVS(key):
 		if whichnode==masternode:
 			#Do PUT
 			if request.method == 'PUT':
-				theResponse = kvsput(key, x)
-				return theResponse
+				mainput = kvsput(key, x)
+				theResponse = nodeputb(key, x)
+				if theResponse != 'Success':
+					return mainput
+				else:
+					return theResponse
 
 			#Do DELETE
 			if request.method == 'DELETE':
@@ -158,13 +166,35 @@ def initKVS(key):
 		else:
 			theResponse = kvsget(key, x)
 			return theResponse
+
+@app.route('/mem')
+def mem():
+	return json.dumps(memberslistIds)
+	#for z in memberslistIds:
+	#	return z
 	
 
+def nodeputb(key, x):
+	f = str(key)
+ 	for z in memberslistIds:
+ 		a = int(z)
+		b = a +5
+		c = str(b)
+ 		req = requests.put('http://10.0.0.2' + z + ':1234' + c + '/kvs/'+f , data = {'val':x})
+ 		if req.status_code!=(200 or 201):
+ 			return req.status_code
+ 		else:
+ 			return 'Success'
 
 	
 def nodekvsput(key, x):
 	f = str(key)
-	r = requests.put('http://10.0.0.20:12345/kvs/'+f , data = {'val':x})
+
+	a = int(masternode)
+	b = a +5
+	c = str(b)
+
+	r = requests.put('http://10.0.0.2'+ masternode + ':1234' + c + '/kvs/' + f, data = {'val':x})
 	if r.status_code !=(200 or 201):
 		return r.status_code
 	else:
@@ -220,7 +250,9 @@ def kvsput(key, x):
 			#r = requests.get('http://10.0.0.22:12347/testx')
 			data = {
 			'replaced' : 0,
-			'msg' : 'success'
+			'msg' : 'success',
+			'memersIDS': memberslistIds,
+			'master':masternode
 			}
 			#payload = {'val': x}
 			response = jsonify(data)
@@ -237,6 +269,22 @@ def kvsput(key, x):
 			response = jsonify(data)
 			response.status_code = 200
 			return response	
+
+
+@app.route('/hello')
+def hello_world():
+	#if request.method == 'POST':
+	#	app.error_handler_spec[None][405] = METHOD_NOT_ALLOWED
+	return 'Hello World!'
+
+
+@app.route('/echo')
+def echobot():
+		msg = request.args.get('msg')
+		if msg is None:
+			return ""
+		else:
+			return msg
 
 #def checkT(key, value):
 
