@@ -38,7 +38,7 @@ def whatip():
 @app.route('/myport')
 def whatport():
 	x = request.host
-	return x + '\n'
+	return x
 
 @app.route('/masters')
 def master():
@@ -50,6 +50,14 @@ def check():
 	b = a + 5
 	c = str(b)
 	return c
+
+#TEST PARSING JSON RESPONSES FROM A NODE
+@app.route('/cget')
+def checkmasterx():
+	r = requests.get('http://10.0.0.21:12346/kvs/foo')
+	data=r.json()
+	#x = data['key']
+	return str(data['value'])
 
 #CHECK IF THE IP ADDRESS IS FROM A NODE OR USER
 @app.route('/test')
@@ -65,15 +73,21 @@ def node():
 	#ipnode = ipnum[4:5]
 	#return ipnode
 
-@app.route('/')
+#TEST SENDING AND RECEIVING MASTER NODE DATA
+@app.route('/cmon')
+def checkmaster():
+	r = requests.get('http://10.0.0.20:12345/kk')
+	x = nodek()
+	return str(r.text) + '\n' + masternode + '\n' + x + '\n'
 
-#NODE ID#
+#RETURN NODE ID
+@app.route('/kk')
 def nodek():
 	node = whatport()
 	ipstr = str(node)
 	ipsplit = ipstr.split(':')
-	ipnum = ipsplit[1]
-	ipnode = ipnum[4:5]
+	ipnum = ipsplit[0]
+	ipnode = ipnum[8:9]
 	return ipnode	
 
 #CHECK IF THE IP ADDRESS IS FROM A NODE / SAME AS node()
@@ -87,16 +101,30 @@ def isnode():
 	else:
 		return False
 
+def isMasterUser():
+	node = whatport()
+	ipstr = str(node)
+	ipsplit = ipstr.split(':')
+	ipnum = ipsplit[1]
+	if ipnum[4:5] == '0':
+		return True 
+	else:
+		return False
+
 	#if (node=="10.0.0.1:49160"):
 	#	return 'found'
 
-#RETURN IP ADDRESS:PORT
+#TEST RETURNING IP ADDRESS:PORT
 @app.route('/testx')
 def testx():
 	x=whatport()
 	return x
 	#requests.get('http://localhost:49161/myport')
 
+@app.route('/mast')
+def testmaster():
+	x = isMasterUser()
+	return str(x)
 
 
 
@@ -110,20 +138,22 @@ def initKVS(key):
 
 	checknode = node()
 	whichnode = nodek()
+	p=isMasterUser()
 
 	#check if the request came from 
 	#a node and not a user
 	if checknode ==1:
 		#check if this node is the master mode	
 		if whichnode==masternode:
+
 			#Do PUT
 			if request.method == 'PUT':
 				mainput = kvsput(key, x)
-				theResponse = nodeputb(key, x)
-				if theResponse != 'Success':
+				#theResponse = nodeputb(key, x)
+				if mainput:
 					return mainput
 				else:
-					return theResponse
+					return "leggo"
 
 			#Do DELETE
 			if request.method == 'DELETE':
@@ -132,12 +162,13 @@ def initKVS(key):
 
 			#Do GET		
 			else:
-				theResponse = kvsget(key, x)
+				theResponse = kvsget(key)
 				return theResponse
 		else:
+			#DO PUT
 			if request.method == 'PUT':
 				theResponse = kvsput(key, x)
-				return theResponse
+				return "main"
 
 			#Do DELETE
 			if request.method == 'DELETE':
@@ -146,66 +177,96 @@ def initKVS(key):
 
 			#Do GET		
 			else:
-				theResponse = kvsget(key, x)
+				theResponse = kvsget(key)
 				return theResponse
 	else:
+		#DO PUT
 		if request.method == 'PUT':
 				mainput = kvsput(key, x)
-				theResponse = nodekvsput(key, x)
-				if theResponse != 'Success':
+				if p:
 					return mainput
 				else:
-					return theResponse
+					theResponse = nodekvsput(key, x)
+					#t = int(theResponse.status_code)
+					if theResponse==("hmm"):
+						return "alive"
+					else:
+						return str(theResponse)
 
-			#Do DELETE
+		#Do DELETE
 		if request.method == 'DELETE':
 			theResponse = kvsdel(key, x)
 			return theResponse
-
 		#Do GET		
 		else:
-			theResponse = kvsget(key, x)
-			return theResponse
+			theResponse = kvsget(key)
+			if p:
+				return theResponse
+			else:
+				secondresponse = nodekvsfuck(key)
+				f = str(secondresponse)
+				if f == 'Fail':
+					return secondresponse
+				else:
+					return secondresponse
 
-@app.route('/mem')
-def mem():
-	return json.dumps(memberslistIds)
-	#for z in memberslistIds:
-	#	return z
-	
+
+def nodekvsfuck(key):
+	f = str(key)
+	a = int(masternode)
+	b = a +5
+	c = str(b)
+	r = requests.get('http://10.0.0.2'+ masternode + ':1234' + c + '/kvs/' + f)
+	data=r.json()
+	x = str(data['value'])
+	d = kvsput(key, x)
+	f = kvsget(key)
+	p = str(r)
+	if kvs.get(key)!= x:
+		return f
+	else:
+		return f
+
+
+
+#sends put to master
+def nodekvsput(key, x):
+	f = str(key)
+
+	a = int(masternode)
+	b = a + 5
+	c = str(b)
+
+	r = requests.put('http://10.0.0.2'+ masternode + ':1234' + c + '/kvs/' + f, data = {'val':x})
+	#r = requests.put('http://10.0.0.21:12346/kvs/' + f, data = {'val':x})
+	#response=r.json()
+	#t = int(r.status_code)
+	x = str(r.text)
+	if x ==("leggo"):
+		return "hmm"
+	else:
+		return str(r)
+
+
 
 def nodeputb(key, x):
 	f = str(key)
+
  	for z in memberslistIds:
  		a = int(z)
 		b = a +5
 		c = str(b)
  		req = requests.put('http://10.0.0.2' + z + ':1234' + c + '/kvs/'+f , data = {'val':x})
- 		if req.status_code!=(200 or 201):
- 			return req.status_code
- 		else:
- 			return 'Success'
+ 	return "fire"
+ 	#return 'Fail'
 
-	
-def nodekvsput(key, x):
-	f = str(key)
-
-	a = int(masternode)
-	b = a +5
-	c = str(b)
-
-	r = requests.put('http://10.0.0.2'+ masternode + ':1234' + c + '/kvs/' + f, data = {'val':x})
-	if r.status_code !=(200 or 201):
-		return r.status_code
-	else:
-		return 'Success'
-
-#def broadcastput(key,x):
-#	for x in memberslistIds:
+ 		#if req.status_code!=(200 or 201):
+ 		#	return req.status_code
+ 		#else:
+ 		#	return 'Success'
 
 
-
-def kvsget(key,x):
+def kvsget(key):
 	if kvs.get(key) == None:
 			data = {
 			'msg' : 'error',
@@ -251,8 +312,8 @@ def kvsput(key, x):
 			data = {
 			'replaced' : 0,
 			'msg' : 'success',
-			'memersIDS': memberslistIds,
-			'master':masternode
+			'membersIDS': memberslistIds,
+			'masterID':masternode
 			}
 			#payload = {'val': x}
 			response = jsonify(data)
@@ -285,6 +346,15 @@ def echobot():
 			return ""
 		else:
 			return msg
+
+@app.route('/mem')
+def mem():
+	for z in memberslistIds:
+ 		a = int(z)
+		b = a +5
+		c = str(b)
+		return c
+
 
 #def checkT(key, value):
 
